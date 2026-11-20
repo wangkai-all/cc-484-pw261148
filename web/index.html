@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retention Studio</title>
+<meta name="description" content="Retention analysis with natural-day, rolling-24h and business-timezone conventions.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Ccircle cx='11' cy='11' r='4' fill='%23cde2fb'/%3E%3Ccircle cx='21' cy='11' r='4' fill='%23ffffff'/%3E%3Ccircle cx='11' cy='21' r='4' fill='%23ffffff'/%3E%3Ccircle cx='21' cy='21' r='4' fill='%230d366b'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>Retention Studio</h1>
+        <p class="brand-sub">Cohort retention · three day conventions · incremental revisions</p>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <div class="meta-item">
+        <span class="meta-label">Dataset</span>
+        <span class="meta-value" id="dataset-summary">Loading…</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">As of</span>
+        <span class="meta-value" id="asof-value">—</span>
+      </div>
+      <button class="btn ghost" id="reset-btn" type="button" title="Restore the seeded dataset and drop all revisions">Reset data</button>
+    </div>
+  </header>
+
+  <section class="filterbar" aria-label="Report filters">
+    <div class="filter-group convention-group" role="group" aria-labelledby="convention-label">
+      <span class="filter-label" id="convention-label">Day convention</span>
+      <div class="segmented" id="convention-switch"></div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="range-from">Cohorts from</label>
+      <input class="input" type="date" id="range-from" min="2026-07-20" max="2026-11-20">
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="range-to">to</label>
+      <input class="input" type="date" id="range-to" min="2026-07-20" max="2026-11-20">
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="zone-select">Reporting zone</label>
+      <select class="input" id="zone-select"></select>
+    </div>
+    <div class="filter-group" id="business-zone-group">
+      <label class="filter-label" for="business-zone-select">Business zone</label>
+      <select class="input" id="business-zone-select"></select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="cohort-select">Cohort on</label>
+      <select class="input" id="cohort-select">
+        <option value="signup">Signup</option>
+        <option value="app_open">First app open</option>
+        <option value="purchase">First purchase</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="horizon-select">Horizon</label>
+      <select class="input" id="horizon-select">
+        <option value="7">Day 7</option>
+        <option value="14" selected>Day 14</option>
+        <option value="30">Day 30</option>
+        <option value="45">Day 45</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label" for="late-select">Late events</label>
+      <select class="input" id="late-select">
+        <option value="include" selected>Include (event time)</option>
+        <option value="settled">Settled 72h window</option>
+      </select>
+    </div>
+
+    <div class="filter-group segment-group">
+      <label class="filter-label" for="plan-select">Plan</label>
+      <select class="input" id="plan-select">
+        <option value="">All plans</option>
+      </select>
+    </div>
+  </section>
+
+  <main class="layout">
+    <div class="primary-column">
+      <section class="card hero-card" aria-labelledby="hero-title">
+        <div class="card-head">
+          <div>
+            <h2 id="hero-title" class="card-title">Day <span id="hero-day">14</span> retention</h2>
+            <p class="card-sub" id="hero-sub">—</p>
+          </div>
+          <div class="convention-badge" id="convention-badge">—</div>
+        </div>
+        <div class="hero-row">
+          <div class="hero-figure">
+            <span class="hero-value" id="hero-value">—</span>
+            <span class="hero-delta" id="hero-delta"></span>
+          </div>
+          <div class="hero-meta">
+            <div class="hero-meta-row"><span>Eligible users</span><span id="hero-eligible">—</span></div>
+            <div class="hero-meta-row"><span>Active on day</span><span id="hero-active">—</span></div>
+            <div class="hero-meta-row"><span>Cohorts counted</span><span id="hero-cohorts">—</span></div>
+          </div>
+        </div>
+        <div class="sparkline-wrap">
+          <svg id="sparkline" class="sparkline" role="img" aria-label="Retention curve for the selected horizon"></svg>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="matrix-title">
+        <div class="card-head">
+          <div>
+            <h2 id="matrix-title" class="card-title">Retention matrix</h2>
+            <p class="card-sub" id="matrix-sub">Hover a cell for the cohort and day. Blank cells are not yet observable.</p>
+          </div>
+          <div class="card-tools">
+            <button class="btn ghost" type="button" id="matrix-mode" aria-pressed="false">Show counts</button>
+            <button class="btn ghost" type="button" id="table-toggle" aria-pressed="false">Table view</button>
+          </div>
+        </div>
+        <div class="matrix-scroll">
+          <div id="matrix" class="matrix" role="grid" aria-label="Retention by cohort and day offset"></div>
+        </div>
+        <div class="legend-row" id="matrix-legend"></div>
+      </section>
+
+      <section class="card" aria-labelledby="conventions-title">
+        <div class="card-head">
+          <div>
+            <h2 id="conventions-title" class="card-title">Convention comparison</h2>
+            <p class="card-sub">The same events, three day definitions. Divergence is the point: pick the one your business means.</p>
+          </div>
+        </div>
+        <div class="compare-chart" id="compare-chart"></div>
+        <div class="compare-legend" id="compare-legend"></div>
+      </section>
+
+      <section class="card" aria-labelledby="breakdown-title">
+        <div class="card-head">
+          <div>
+            <h2 id="breakdown-title" class="card-title">Cohort breakdown</h2>
+            <p class="card-sub">Day 1 and day 7 by entry attribute, using the attribute captured when the user entered the cohort.</p>
+          </div>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+      </section>
+    </div>
+
+    <aside class="side-column">
+      <section class="card" aria-labelledby="sample-title">
+        <div class="card-head">
+          <div>
+            <h2 id="sample-title" class="card-title">Sample &amp; exclusions</h2>
+            <p class="card-sub">How the headline number was built, and what was left out.</p>
+          </div>
+        </div>
+        <div id="sample-ledger" class="ledger"></div>
+      </section>
+
+      <section class="card" aria-labelledby="dst-title">
+        <div class="card-head">
+          <div>
+            <h2 id="dst-title" class="card-title">Time-zone ledger</h2>
+            <p class="card-sub" id="dst-sub">—</p>
+          </div>
+        </div>
+        <div id="dst-ledger" class="ledger"></div>
+      </section>
+
+      <section class="card" aria-labelledby="revisions-title">
+        <div class="card-head">
+          <div>
+            <h2 id="revisions-title" class="card-title">Data revisions</h2>
+            <p class="card-sub">Apply a correction and watch only the affected cohorts recompute.</p>
+          </div>
+        </div>
+        <div class="revision-form" id="revision-form"></div>
+        <div class="recompute-readout" id="recompute-readout" aria-live="polite"></div>
+        <div class="version-list" id="version-list"></div>
+        <div class="version-diff" id="version-diff" hidden></div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="card ledger-card" aria-labelledby="cases-title">
+    <div class="card-head">
+      <div>
+        <h2 id="cases-title" class="card-title">Boundary cases</h2>
+        <p class="card-sub">Seeded users that exercise midnight crossings, repeated hours, late arrivals, duplicates and merges. Open a case to see its events attributed under all three conventions.</p>
+      </div>
+    </div>
+    <div class="cases-grid" id="cases-grid"></div>
+    <div class="case-detail" id="case-detail" hidden></div>
+  </section>
+
+  <footer class="page-footer">
+    <p>Demo dataset is deterministic and seeded at 2026-11-19 12:00 UTC. All times are attributable; nothing is sampled at query time.</p>
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/app.js" type="module"></script>
+</body>
+</html>
